@@ -1,0 +1,148 @@
+name: production-agentic-rag
+services:
+  postgres:
+    image: pgvector/pgvector:pg15
+    environment:
+      POSTGRES_DB: rag
+      POSTGRES_USER: rag
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local-rag-password}
+    ports: ["5432:5432"]
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rag -d rag"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    ports: ["6379:6379"]
+    volumes: ["redis_data:/data"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  retrieval:
+    build:
+      context: .
+      args:
+        INSTALL_FEATURES: ${INSTALL_FEATURES:-lite}
+    command: ["uvicorn", "production_rag.services.retrieval_service:app", "--host", "0.0.0.0", "--port", "8002"]
+    environment: &app_env
+      PORT: "8002"
+      APP_ENV: ${APP_ENV:-development}
+      DATABASE_URL: postgresql://rag:${POSTGRES_PASSWORD:-local-rag-password}@postgres:5432/rag
+      USE_POSTGRES: "true"
+      REDIS_URL: redis://redis:6379/0
+      CACHE_BACKEND: redis
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318/v1/traces
+      OTEL_SERVICE_NAME: ${OTEL_SERVICE_NAME:-production-agentic-rag}
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-local-internal-token-change-me}
+      EMBEDDING_BACKEND: ${EMBEDDING_BACKEND:-hash}
+      RERANKER_BACKEND: ${RERANKER_BACKEND:-lexical}
+      LLM_ENABLED: ${LLM_ENABLED:-false}
+      RAGAS_ENABLED: ${RAGAS_ENABLED:-false}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://api.groq.com/openai/v1}
+      LLM_MODEL: ${LLM_MODEL:-openai/gpt-oss-20b}
+      JWT_SECRET: ${JWT_SECRET:-replace-this-secret-in-production}
+      REQUEST_TOKEN_BUDGET: "8192"
+      RATE_LIMIT_PER_MINUTE: "50"
+      SEED_DEMO_DATA: ${SEED_DEMO_DATA:-true}
+    depends_on:
+      postgres: {condition: service_healthy}
+      jaeger: {condition: service_started}
+    restart: unless-stopped
+
+  orchestrator:
+    build:
+      context: .
+      args:
+        INSTALL_FEATURES: ${INSTALL_FEATURES:-lite}
+    command: ["uvicorn", "production_rag.services.orchestrator_service:app", "--host", "0.0.0.0", "--port", "8001"]
+    ports: ["127.0.0.1:8001:8001"]
+    environment:
+      <<: *app_env
+      PORT: "8001"
+      RETRIEVAL_URL: http://retrieval:8002
+    depends_on:
+      retrieval: {condition: service_started}
+      redis: {condition: service_healthy}
+      jaeger: {condition: service_started}
+    restart: unless-stopped
+
+  gateway:
+    build:
+      context: .
+      args:
+        INSTALL_FEATURES: ${INSTALL_FEATURES:-lite}
+    command: ["uvicorn", "production_rag.services.gateway:app", "--host", "0.0.0.0", "--port", "8000"]
+    environment:
+      <<: *app_env
+      PORT: "8000"
+      ORCHESTRATOR_URL: http://orchestrator:8001
+      RETRIEVAL_URL: http://retrieval:8002
+      GRAFANA_URL: http://localhost:3000
+      PROMETHEUS_URL: http://localhost:9090
+    ports: ["8000:8000"]
+    depends_on:
+      orchestrator: {condition: service_started}
+      retrieval: {condition: service_started}
+      redis: {condition: service_healthy}
+      jaeger: {condition: service_started}
+    restart: unless-stopped
+
+  evaluation-worker:
+    build:
+      context: .
+      target: evaluation
+    command: ["python", "-m", "production_rag.services.evaluation_worker"]
+    environment:
+      <<: *app_env
+      PORT: "0"
+      ORCHESTRATOR_URL: http://orchestrator:8001
+    depends_on:
+      gateway: {condition: service_started}
+      redis: {condition: service_healthy}
+    profiles: [evaluation]
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import os; assert os.getpid() > 1'"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.57
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports: ["16686:16686", "4317:4317", "4318:4318"]
+
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    command: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.retention.time=15d"]
+    volumes: ["./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro"]
+    ports: ["9090:9090"]
+    depends_on: [gateway]
+
+  grafana:
+    image: grafana/grafana:11.1.0
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-local-admin-password}
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports: ["3000:3000"]
+    depends_on: [prometheus]
+
+volumes:
+  postgres_data:
+  redis_data:
+  grafana_data:

@@ -1,0 +1,77 @@
+name: Publish Image and Optional Kubernetes Rollout
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: Deploy the published image to the configured Kubernetes cluster
+        required: true
+        type: boolean
+        default: false
+permissions:
+  contents: read
+  packages: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.meta.outputs.tags }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/metadata-action@v5
+        id: meta
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=ref,event=tag
+            type=ref,event=branch
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish production API image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: production
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+      - name: Publish evaluation worker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: evaluation
+          push: true
+          tags: ghcr.io/${{ github.repository }}:eval-${{ github.ref_name }}
+  deploy:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.deploy }}
+    needs: publish
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-kubectl@v4
+      - name: Configure cluster credentials
+        run: |
+          mkdir -p "$HOME/.kube"
+          printf '%s' "${{ secrets.KUBECONFIG }}" > "$HOME/.kube/config"
+          chmod 600 "$HOME/.kube/config"
+      - name: Apply platform resources
+        run: |
+          kubectl create namespace production-rag --dry-run=client -o yaml | kubectl apply -f -
+          kubectl label namespace production-rag istio-injection=enabled --overwrite
+          kubectl apply -f k8s/platform.yaml
+          kubectl apply -f k8s/istio-security.yaml
+      - name: Update image and wait for rollout
+        run: |
+          IMAGE="ghcr.io/${{ github.repository }}:${GITHUB_REF_NAME}"
+          kubectl -n production-rag set image deployment/gateway gateway="$IMAGE"
+          kubectl -n production-rag set image deployment/orchestrator orchestrator="$IMAGE"
+          kubectl -n production-rag set image deployment/retrieval retrieval="$IMAGE"
+          kubectl -n production-rag set image deployment/evaluation-worker evaluation-worker="ghcr.io/${{ github.repository }}:eval-${GITHUB_REF_NAME}"
+          kubectl -n production-rag rollout status deployment/gateway --timeout=180s
+          kubectl -n production-rag rollout status deployment/orchestrator --timeout=180s
+          kubectl -n production-rag rollout status deployment/retrieval --timeout=180s
+          kubectl -n production-rag rollout status deployment/evaluation-worker --timeout=180s

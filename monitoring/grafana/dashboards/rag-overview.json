@@ -1,0 +1,17 @@
+{
+  "title": "Production Agentic RAG Overview",
+  "uid": "production-agentic-rag",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "15s",
+  "panels": [
+    {"id": 1, "type": "timeseries", "title": "Request rate", "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}, "targets": [{"expr": "sum(rate(rag_requests_total[5m])) by (status)", "legendFormat": "{{status}}"}]},
+    {"id": 2, "type": "timeseries", "title": "Request latency p95", "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}, "targets": [{"expr": "histogram_quantile(0.95, sum(rate(rag_request_latency_seconds_bucket[5m])) by (le))", "legendFormat": "p95"}]},
+    {"id": 3, "type": "timeseries", "title": "Reranking latency", "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}, "targets": [{"expr": "histogram_quantile(0.95, sum(rate(rag_rerank_latency_seconds_bucket[5m])) by (le))", "legendFormat": "p95"}]},
+    {"id": 4, "type": "timeseries", "title": "Prompt tokens", "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}, "targets": [{"expr": "sum(rate(rag_prompt_tokens_total[5m]))", "legendFormat": "tokens/sec"}]},
+    {"id": 5, "type": "timeseries", "title": "Security events", "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16}, "targets": [{"expr": "sum(rate(rag_security_events_total[5m])) by (kind)", "legendFormat": "{{kind}}"}]},
+    {"id": 6, "type": "stat", "title": "Latest faithfulness score", "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16}, "targets": [{"expr": "rag_latest_faithfulness_score", "legendFormat": "faithfulness"}]}
+  ],
+  "time": {"from": "now-1h", "to": "now"},
+  "timezone": "browser"
+}

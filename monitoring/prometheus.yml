@@ -1,0 +1,15 @@
+global:
+  scrape_interval: 15s
+scrape_configs:
+  - job_name: rag-gateway
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["gateway:8000"]
+  - job_name: rag-orchestrator
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["orchestrator:8001"]
+  - job_name: rag-retrieval
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["retrieval:8002"]

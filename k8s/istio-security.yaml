@@ -1,0 +1,95 @@
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: default
+  namespace: production-rag
+spec:
+  mtls:
+    mode: STRICT
+---
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: rag-ingress
+  namespace: istio-system
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+    - port:
+        number: 443
+        name: https-rag
+        protocol: HTTPS
+      hosts:
+        - rag.example.com
+      tls:
+        mode: SIMPLE
+        credentialName: rag-tls-cert
+        minProtocolVersion: TLSV1_3
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: rag-gateway
+  namespace: production-rag
+spec:
+  hosts:
+    - rag.example.com
+  gateways:
+    - istio-system/rag-ingress
+  http:
+    - route:
+        - destination:
+            host: gateway.production-rag.svc.cluster.local
+            port:
+              number: 8000
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: gateway-ingress
+  namespace: production-rag
+spec:
+  selector:
+    matchLabels:
+      app: gateway
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            principals:
+              - cluster.local/ns/istio-system/sa/istio-ingressgateway-service-account
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: orchestrator-internal
+  namespace: production-rag
+spec:
+  selector:
+    matchLabels:
+      app: orchestrator
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            principals:
+              - cluster.local/ns/production-rag/sa/gateway
+              - cluster.local/ns/production-rag/sa/evaluation-worker
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: retrieval-internal
+  namespace: production-rag
+spec:
+  selector:
+    matchLabels:
+      app: retrieval
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            principals:
+              - cluster.local/ns/production-rag/sa/gateway
+              - cluster.local/ns/production-rag/sa/orchestrator

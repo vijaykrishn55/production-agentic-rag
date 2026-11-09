@@ -1,0 +1,8 @@
+{
+  "attack_cases": 12,
+  "attack_detected": 12,
+  "attack_detection_rate": 1.0,
+  "benign_cases": 14,
+  "benign_accepted": 14,
+  "benign_acceptance_rate": 1.0
+}

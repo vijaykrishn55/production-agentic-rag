@@ -1,0 +1,20 @@
+{"query": "What is the cloud infrastructure budget allocation?", "route": "internal_retrieval"}
+{"query": "Search the internal incident response policy", "route": "internal_retrieval"}
+{"query": "What are the API key rotation rules?", "route": "internal_retrieval"}
+{"query": "Find the platform retrieval architecture", "route": "internal_retrieval"}
+{"query": "How should user PII be handled?", "route": "internal_retrieval"}
+{"query": "Explain PostgreSQL full text and vector search", "route": "internal_retrieval"}
+{"query": "When is a suspected data leak reported?", "route": "internal_retrieval"}
+{"query": "Which service handles evaluation jobs?", "route": "internal_retrieval"}
+{"query": "What is the TLS version required for service traffic?", "route": "internal_retrieval"}
+{"query": "Describe the tenant isolation policy", "route": "internal_retrieval"}
+{"query": "calculate: 2+2", "route": "calculator"}
+{"query": "calculate: (125 * 4) / 5", "route": "calculator"}
+{"query": "calculate: 1000/8", "route": "calculator"}
+{"query": "calculate: 75*1.18", "route": "calculator"}
+{"query": "calculate: (500-125)/5", "route": "calculator"}
+{"query": "calculate: 2**5", "route": "calculator"}
+{"query": "calculate: 144/12", "route": "calculator"}
+{"query": "calculate: 9*(7+3)", "route": "calculator"}
+{"query": "calculate: 15%4", "route": "calculator"}
+{"query": "calculate: -12+30", "route": "calculator"}

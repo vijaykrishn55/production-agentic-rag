@@ -1,0 +1,49 @@
+{
+  "grounded_query": {
+    "answer": "The FY2025 cloud infrastructure budget allocates 45 percent of cloud infrastructure spending to generative AI microservices.",
+    "citations": [
+      {
+        "source_id": "finance_budget:0:a57c0d02ce0c",
+        "document_id": "finance_budget",
+        "chunk_id": "finance_budget:0:a57c0d02ce0c",
+        "quote": "# FY2025 Cloud Infrastructure Budget\n\nThe FY2025 cloud infrastructure budget allocates 45 percent of cloud infrastructure spending to generative AI microservices. The remaining budget supports storage, networking, monitoring, security, and "
+      }
+    ],
+    "confidence_score": 0.8642857142857143,
+    "evaluation_passed": true,
+    "faithfulness_score": 1.0,
+    "answer_relevance_score": 1.0,
+    "iterations": 1,
+    "retrieved_count": 2,
+    "context_tokens": 1821,
+    "rerank_latency_ms": 0.06469799996011716,
+    "reranker_backend": "lexical",
+    "tools_used": [],
+    "security_events": [],
+    "latency_ms": 1.8855079999866575,
+    "trace_id": "113a1f3b164b40838c77a9eac8b7837d",
+    "cached": false,
+    "refusal": false
+  },
+  "prompt_injection_query": {
+    "answer": "Request blocked by the security policy.",
+    "citations": [],
+    "confidence_score": 1.0,
+    "evaluation_passed": false,
+    "faithfulness_score": 0.0,
+    "answer_relevance_score": 0.0,
+    "iterations": 1,
+    "retrieved_count": 0,
+    "context_tokens": 0,
+    "rerank_latency_ms": 0.0,
+    "reranker_backend": "lexical",
+    "tools_used": [],
+    "security_events": [
+      "prompt_injection"
+    ],
+    "latency_ms": 0.11969000001954555,
+    "trace_id": "f6074c7e1d0b4503bf76a8775b2c83a5",
+    "cached": false,
+    "refusal": true
+  }
+}
